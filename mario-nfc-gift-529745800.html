@@ -917,14 +917,75 @@
                         // Reset no button position
                         const noBtn = document.getElementById('noBtn');
                         if (noBtn) {
-                            noBtn.style.position = 'relative';
-                            noBtn.style.left = '0';
-                            noBtn.style.top = '0';
+                            resetNoButtonPosition(noBtn);
                         }
                         
                         console.log('Final panel should be visible now');
                     }
                 }, 1000);
+            }
+            
+            // Reset No button to centered position
+            function resetNoButtonPosition(noBtn) {
+                noBtn.style.position = 'relative';
+                noBtn.style.left = '0';
+                noBtn.style.top = '0';
+                noBtn.style.transform = 'none';
+                noBtn.style.transition = 'none';
+                noBtn.style.zIndex = '5';
+            }
+            
+            // Move No button randomly on the screen - ALWAYS moves when called
+            function moveNoButtonRandomly(button) {
+                // Change to fixed position to move anywhere
+                button.style.position = 'fixed';
+                button.style.zIndex = '9999';
+                
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const buttonWidth = button.offsetWidth;
+                const buttonHeight = button.offsetHeight;
+                
+                // Calculate safe area (keep button fully visible)
+                const maxX = viewportWidth - buttonWidth - 20;
+                const maxY = viewportHeight - buttonHeight - 20;
+                
+                // Get current position
+                const currentX = parseInt(button.style.left) || (viewportWidth/2 - buttonWidth/2);
+                const currentY = parseInt(button.style.top) || (viewportHeight/2 - buttonHeight/2);
+                
+                // Generate new position far from current position
+                let newX, newY;
+                let attempts = 0;
+                const minDistance = 150; // Minimum distance to move
+                
+                do {
+                    newX = Math.random() * maxX;
+                    newY = Math.random() * maxY;
+                    attempts++;
+                    
+                    // Calculate distance from current position
+                    const distance = Math.sqrt(Math.pow(newX - currentX, 2) + Math.pow(newY - currentY, 2));
+                    
+                    // Accept position if it's far enough or we've tried too many times
+                    if (distance >= minDistance || attempts > 20) {
+                        break;
+                    }
+                } while (true);
+                
+                // Apply position with fast transition
+                button.style.transition = 'all 0.1s ease-out';
+                button.style.left = `${newX}px`;
+                button.style.top = `${newY}px`;
+                
+                // Add shake effect
+                button.classList.add('shake');
+                setTimeout(() => {
+                    button.classList.remove('shake');
+                }, 500);
+                
+                // Prevent any default actions
+                return false;
             }
             
             // Handle wrong answer
@@ -987,47 +1048,42 @@
                 });
             }
             
-            // No button runaway - mobile friendly
+            // No button runaway - updated to match second code exactly
             const noBtn = document.getElementById('noBtn');
             if (noBtn) {
-                // For mobile: move on touch
+                // Start with normal position
+                resetNoButtonPosition(noBtn);
+                
+                // Add multiple event listeners to catch ALL interactions
+                noBtn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    if (finalPanel.style.display !== 'block') return;
+                    moveNoButtonRandomly(noBtn);
+                });
+                
                 noBtn.addEventListener('touchstart', function(e) {
                     e.preventDefault();
                     if (finalPanel.style.display !== 'block') return;
-                    moveNoButton();
+                    moveNoButtonRandomly(noBtn);
                 }, { passive: false });
                 
-                // For desktop: move on mouseenter
-                noBtn.addEventListener('mouseenter', function(e) {
+                noBtn.addEventListener('mouseover', function(e) {
                     if (finalPanel.style.display !== 'block') return;
-                    moveNoButton();
+                    moveNoButtonRandomly(noBtn);
                 });
                 
                 noBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     if (finalPanel.style.display !== 'block') return;
-                    moveNoButton();
+                    moveNoButtonRandomly(noBtn);
                 });
                 
-                function moveNoButton() {
-                    const container = document.querySelector('.container');
-                    const containerRect = container.getBoundingClientRect();
-                    const btnRect = noBtn.getBoundingClientRect();
-                    
-                    const maxX = containerRect.width - btnRect.width - 20;
-                    const maxY = containerRect.height - btnRect.height - 20;
-                    
-                    let newX = Math.random() * maxX;
-                    let newY = Math.random() * maxY;
-                    
-                    // Keep within container
-                    newX = Math.max(10, Math.min(newX, maxX));
-                    newY = Math.max(10, Math.min(newY, maxY));
-                    
-                    noBtn.style.position = 'absolute';
-                    noBtn.style.left = newX + 'px';
-                    noBtn.style.top = newY + 'px';
-                }
+                // Also move on touchmove to catch any touch interaction
+                noBtn.addEventListener('touchmove', function(e) {
+                    e.preventDefault();
+                    if (finalPanel.style.display !== 'block') return;
+                    moveNoButtonRandomly(noBtn);
+                }, { passive: false });
             }
             
             // Yes button
@@ -1071,14 +1127,26 @@
                 }
             }
             
-            // Reset no button on window resize
-            window.addEventListener('resize', () => {
+            // Handle window resize
+            window.addEventListener('resize', function() {
                 if (finalPanel.style.display === 'block') {
                     const noBtn = document.getElementById('noBtn');
                     if (noBtn) {
-                        noBtn.style.position = 'relative';
-                        noBtn.style.left = '0';
-                        noBtn.style.top = '0';
+                        // Keep button on screen if it's currently fixed
+                        const currentLeft = parseInt(noBtn.style.left);
+                        const currentTop = parseInt(noBtn.style.top);
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+                        const buttonWidth = noBtn.offsetWidth;
+                        const buttonHeight = noBtn.offsetHeight;
+                        
+                        // Adjust position if button is off-screen
+                        if (currentLeft > viewportWidth - buttonWidth) {
+                            noBtn.style.left = `${viewportWidth - buttonWidth - 20}px`;
+                        }
+                        if (currentTop > viewportHeight - buttonHeight) {
+                            noBtn.style.top = `${viewportHeight - buttonHeight - 20}px`;
+                        }
                     }
                 }
             });
